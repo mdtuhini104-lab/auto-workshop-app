@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { fetchApi } from '@/utils/api';
 
 export interface NotificationItem {
   id: string;
@@ -59,6 +58,7 @@ const initialNotifications: NotificationItem[] = [
 ];
 
 const READ_STORAGE_KEY = 'mamun_erp_read_notifications';
+const CLEARED_STORAGE_KEY = 'mamun_erp_cleared_notifications';
 
 function getStoredReadIds(): string[] {
   if (typeof window === 'undefined') return [];
@@ -68,7 +68,6 @@ function getStoredReadIds(): string[] {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
-    console.error('Failed to parse read notification IDs from localStorage:', error);
     return [];
   }
 }
@@ -78,7 +77,7 @@ function saveStoredReadIds(ids: string[]) {
   try {
     localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(ids));
   } catch (error) {
-    console.error('Failed to save read notification IDs to localStorage:', error);
+    // Safe storage fallback
   }
 }
 
@@ -90,6 +89,10 @@ function NotificationDropdownContent() {
 
   // Initial page load / refresh hydration
   useEffect(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem(CLEARED_STORAGE_KEY) === 'true') {
+      setNotifications([]);
+      return;
+    }
     const readIds = getStoredReadIds();
     setNotifications(prev =>
       prev.map(n => ({
@@ -111,8 +114,8 @@ function NotificationDropdownContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const markAsRead = async (id: string) => {
-    // 1. Optimistic UI update
+  const markAsRead = (id: string) => {
+    // 1. Fully local React state mutation
     setNotifications(prev =>
       prev.map(n => (n.id === id ? { ...n, isRead: true } : n))
     );
@@ -122,35 +125,40 @@ function NotificationDropdownContent() {
     if (!storedIds.includes(id)) {
       saveStoredReadIds([...storedIds, id]);
     }
-
-    // 3. Backend API call
-    try {
-      await fetchApi(`/api/notifications/${id}/read`, { method: 'PATCH' });
-    } catch (err) {
-      console.warn(`Failed to sync read status for notification ${id} to server:`, err);
-    }
   };
 
-  const markAllAsRead = async () => {
-    // 1. Optimistic UI update
+  const markAllAsRead = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // 1. Fully local React state mutation
     const allIds = notifications.map(n => n.id);
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
 
-    // 2. Persist all notification IDs in localStorage
+    // 2. Persist in localStorage
     const storedIds = getStoredReadIds();
     const updatedIds = Array.from(new Set([...storedIds, ...allIds]));
     saveStoredReadIds(updatedIds);
-
-    // 3. Backend API call
-    try {
-      await fetchApi('/api/notifications/read-all', { method: 'PATCH' });
-    } catch (err) {
-      console.warn('Failed to sync mark all read to server:', err);
-    }
   };
 
-  const clearAll = () => {
+  const clearAll = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // 1. Fully local React state mutation
     setNotifications([]);
+
+    // 2. Persist in localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(CLEARED_STORAGE_KEY, 'true');
+        saveStoredReadIds(initialNotifications.map(n => n.id));
+      } catch (err) {
+        // Safe storage fallback
+      }
+    }
   };
 
   const filteredNotifications = notifications.filter(n => {
@@ -223,15 +231,17 @@ function NotificationDropdownContent() {
             </div>
             <div className="flex items-center gap-2 text-xs">
               <button
+                type="button"
                 onClick={markAllAsRead}
-                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-semibold hover:underline"
+                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 font-semibold hover:underline cursor-pointer"
               >
                 Mark all read
               </button>
               <span className="text-slate-300">|</span>
               <button
+                type="button"
                 onClick={clearAll}
-                className="text-slate-400 hover:text-rose-600 font-medium"
+                className="text-slate-400 hover:text-rose-600 font-medium cursor-pointer"
               >
                 Clear
               </button>
@@ -243,8 +253,12 @@ function NotificationDropdownContent() {
             {(['All', 'Unread', 'Workshops', 'Finance', 'Inventory'] as const).map(tab => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors whitespace-nowrap ${
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveTab(tab);
+                }}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-colors whitespace-nowrap cursor-pointer ${
                   activeTab === tab 
                     ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' 
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'

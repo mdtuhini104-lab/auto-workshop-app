@@ -147,8 +147,8 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 h-screen flex flex-col bg-white border-r border-slate-200 shrink-0 select-none shadow-sm z-30 overflow-hidden">
-      {/* Top Header Logo */}
-      <div className="p-4 border-b border-slate-100 shrink-0 bg-white">
+      {/* Header */}
+      <div className="h-16 flex items-center px-4 border-b border-slate-100 shrink-0 bg-white">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
             <Wrench className="w-5 h-5"/>
@@ -160,79 +160,81 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Middle Scrollable Navigation */}
-      <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1 hide-scrollbar">
-        {navigation.map((item) => {
-          const Icon = item.icon;
-          const isSubMenuOpen = !!openMenus[item.title];
-          const hasSubItems = item.subItems && item.subItems.length > 0;
-          const isActiveDirect = item.href ? pathname === item.href : false;
+      {/* Scrollable Nav with bounded height */}
+      <nav className="flex-1 overflow-y-auto p-3 space-y-1 hide-scrollbar">
+        <div className="space-y-1">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            const isSubMenuOpen = !!openMenus[item.title];
+            const hasSubItems = item.subItems && item.subItems.length > 0;
+            const isActiveDirect = item.href ? pathname === item.href : false;
 
-          return (
-            <div key={item.title} className="space-y-0.5">
-              {/* Single Route or Parent Dropdown Header */}
-              {item.href ? (
-                <Link 
-                  href={item.href}
-                  prefetch={false}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                    isActiveDirect
-                      ? 'bg-blue-50 text-blue-700 font-bold border-l-4 border-blue-600 shadow-xs'
-                      : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-                >
-                  {Icon && <Icon className="w-4 h-4 text-slate-500"/>}
-                  <span>{item.title}</span>
-                </Link>
-              ) : (
-                <button
-                  onClick={() => toggleMenu(item.title)}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-50 transition cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
+            return (
+              <div key={item.title} className="space-y-0.5">
+                {/* Single Route or Parent Dropdown Header */}
+                {item.href ? (
+                  <Link 
+                    href={item.href}
+                    prefetch={false}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                      isActiveDirect
+                        ? 'bg-blue-50 text-blue-700 font-bold border-l-4 border-blue-600 shadow-xs'
+                        : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
                     {Icon && <Icon className="w-4 h-4 text-slate-500"/>}
                     <span>{item.title}</span>
-                  </div>
-                  {hasSubItems && (
-                    isSubMenuOpen ? (
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400"/>
-                    ) : (
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-400"/>
-                    )
-                  )}
-                </button>
-              )}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => toggleMenu(item.title)}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold text-slate-800 hover:bg-slate-50 transition cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      {Icon && <Icon className="w-4 h-4 text-slate-500"/>}
+                      <span>{item.title}</span>
+                    </div>
+                    {hasSubItems && (
+                      isSubMenuOpen ? (
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400"/>
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-400"/>
+                      )
+                    )}
+                  </button>
+                )}
 
-              {/* Sub-Items List */}
-              {hasSubItems && isSubMenuOpen && (
-                <div className="overflow-hidden pl-9 pr-1 py-1 space-y-1 border-l ml-5">
-                  {item.subItems!.map((sub) => {
-                    const isSubActive = pathname === sub.href;
-                    return (
-                      <Link 
-                        key={sub.href}
-                        href={sub.href}
-                        prefetch={false}
-                        className={`block px-2.5 py-1.5 rounded-md text-xs transition ${
-                          isSubActive
-                            ? 'bg-blue-50 text-blue-700 font-bold shadow-xs'
-                            : 'text-slate-600 font-medium hover:bg-slate-50 hover:text-slate-900'
-                        }`}
-                      >
-                        {sub.title}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {/* Explicit safe-scroll spacer */}
-        <div className="h-8 shrink-0" />
+                {/* Sub-Items List */}
+                {hasSubItems && isSubMenuOpen && (
+                  <div className="overflow-hidden pl-9 pr-1 py-1 space-y-1 border-l ml-5">
+                    {item.subItems!.map((sub) => {
+                      const isSubActive = pathname === sub.href;
+                      return (
+                        <Link 
+                          key={sub.href}
+                          href={sub.href}
+                          prefetch={false}
+                          className={`block px-2.5 py-1.5 rounded-md text-xs transition ${
+                            isSubActive
+                              ? 'bg-blue-50 text-blue-700 font-bold shadow-xs'
+                              : 'text-slate-600 font-medium hover:bg-slate-50 hover:text-slate-900'
+                          }`}
+                        >
+                          {sub.title}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {/* Safe spacer so expanded submenus never hit the footer */}
+        <div className="h-16 shrink-0 pointer-events-none" />
       </nav>
 
-      {/* Pinned Isolated Footer */}
+      {/* Pinned Bottom Footer */}
       <div className="p-3 border-t border-slate-200 bg-white shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-40 space-y-1">
         <Link
           href="/peoples/users"

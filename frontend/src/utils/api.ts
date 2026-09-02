@@ -34,11 +34,18 @@ interface FetchOptions extends RequestInit {
 }
 
 const SILENT_ENDPOINTS = [
+  '/backend/api/notifications',
   '/backend/api/notifications/read-all',
+  '/backend/api/notifications/clear-all',
+  '/backend/api/api_notifications.php',
   '/backend/api/api_master_data.php',
+  '/api/notifications',
   '/api/notifications/read-all',
+  '/api/notifications/clear-all',
   '/api/notifications/read',
   'notifications/read-all',
+  'notifications/clear-all',
+  'notifications',
   'api_master_data.php'
 ];
 
