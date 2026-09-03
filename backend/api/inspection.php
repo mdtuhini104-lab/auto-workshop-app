@@ -4,19 +4,14 @@ require_once '../config.php';
 
 header('Content-Type: application/json');
 
-// Extremely basic JWT validation for boilerplate purposes
-$headers = getallheaders();
-$authHeader = isset($headers['Authorization']) ? $headers['Authorization'] : '';
-
-if (strpos($authHeader, 'Bearer ') !== 0) {
+$user_id = get_user_id_from_token();
+if (!$user_id) {
     http_response_code(401);
     echo json_encode(["error" => "Unauthorized"]);
     exit();
 }
 
-// In a real app, you MUST decode and verify the JWT signature here.
-// For this boilerplate, we assume authentication passes if a token is present.
-// $jwt = substr($authHeader, 7);
+require_permission($pdo, $user_id, 'inspections', 'inspections', true);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

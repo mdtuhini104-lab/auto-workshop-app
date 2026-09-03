@@ -1,22 +1,17 @@
 <?php
-// Dynamic CORS - reflects requesting origin, supports credentials & preflight
-if (isset($_SERVER['HTTP_ORIGIN'])) {
-    header("Access-Control-Allow-Origin: {$_SERVER['HTTP_ORIGIN']}");
-    header('Access-Control-Allow-Credentials: true');
-    header('Access-Control-Max-Age: 86400');
-}
-if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_METHOD']))
-        header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
-    if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']))
-        header("Access-Control-Allow-Headers: {$_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']}");
-    exit(0);
-}
 require_once '../config.php';
 header('Content-Type: application/json');
 $action = $_GET['action'] ?? '';
 
+$user_id = get_user_id_from_token();
+if (!$user_id) {
+    http_response_code(401);
+    echo json_encode(["error" => "Unauthorized"]);
+    exit();
+}
+
 if ($action === 'get_customers') {
+    require_permission($pdo, $user_id, 'peoples', 'customers', false);
     try {
         $pdo->exec("ALTER TABLE customers ADD COLUMN customer_code VARCHAR(20) NULL");
         $pdo->exec("ALTER TABLE customers ADD COLUMN company VARCHAR(100) NULL");
@@ -50,6 +45,7 @@ if ($action === 'get_customers') {
         echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
     }
 } elseif ($action === 'save_customer') {
+    require_permission($pdo, $user_id, 'peoples', 'customers', true);
     $data = json_decode(file_get_contents('php://input'), true);
     
     $name = $data['name'] ?? '';

@@ -11,7 +11,7 @@ export default function UnauthorizedPage() {
       </div>
       <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Access Denied</h1>
       <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
-        You don't have permission to access this page. Please contact your system administrator if you believe this is an error.
+        You don&apos;t have permission to access this page. Please contact your system administrator if you believe this is an error.
       </p>
       <Link prefetch={false} href="/"
         className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"

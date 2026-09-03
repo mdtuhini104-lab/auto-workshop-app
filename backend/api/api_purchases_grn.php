@@ -9,26 +9,37 @@ if ($method === 'POST') {
     $action = $input['action'] ?? '';
 }
 
+$user_id = get_user_id_from_token();
+if (!$user_id) {
+    http_response_code(401);
+    echo json_encode(["error" => "Unauthorized"]);
+    exit();
+}
+
 try {
     switch ($action) {
         // --- VENDOR PURCHASES ---
         case 'get_purchases':
+            require_permission($pdo, $user_id, 'purchases', 'grn', false);
             // SELECT * FROM purchase_orders
             echo json_encode(["success" => true, "data" => []]);
             break;
             
         case 'create_purchase_order':
+            require_permission($pdo, $user_id, 'purchases', 'grn', true);
             // INSERT INTO purchase_orders
             echo json_encode(["success" => true, "message" => "PO created"]);
             break;
 
         // --- GOODS RECEIVED NOTE (GRN) ---
         case 'get_pending_grn':
+            require_permission($pdo, $user_id, 'purchases', 'grn', false);
             // Fetch POs waiting for receipt
             echo json_encode(["success" => true, "data" => []]);
             break;
 
         case 'verify_grn':
+            require_permission($pdo, $user_id, 'purchases', 'grn', true);
             // Safely increment inventory stock based on received goods
             // Update supplier outstanding balance (Payables)
             echo json_encode(["success" => true, "message" => "GRN Verified and Stock Updated"]);
@@ -36,6 +47,7 @@ try {
 
         // --- RETURN TO VENDOR ---
         case 'return_to_vendor':
+            require_permission($pdo, $user_id, 'purchases', 'grn', true);
             // Safely deduct from inventory_parts and adjust supplier balances
             echo json_encode(["success" => true, "message" => "Vendor return logged successfully"]);
             break;
