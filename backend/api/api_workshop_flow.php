@@ -184,13 +184,19 @@ try {
             $work_order_id = $input['work_order_id'] ?? null;
             $customer_id = $input['customer_id'];
             $billed_by = $input['billed_by'] ?? 'Mamun Automobiles';
-            $subtotal = $input['subtotal'] ?? 0;
-            $discount_amount = $input['discount_amount'] ?? 0;
-            $grand_total = $input['grand_total'] ?? 0;
-            $paid_amount = $input['paid_amount'] ?? 0;
+            $discount_amount = floatval($input['discount_amount'] ?? 0);
+            $paid_amount = floatval($input['paid_amount'] ?? 0);
+            $items = $input['items'] ?? [];
+
+            $subtotal = 0;
+            if (!empty($items)) {
+                foreach ($items as $item) {
+                    $subtotal += floatval($item['quantity'] ?? 0) * floatval($item['rate'] ?? 0);
+                }
+            }
+            $grand_total = max(0, $subtotal - $discount_amount);
             $balance_due = max(0, $grand_total - $paid_amount);
             $sale_type = ($paid_amount >= $grand_total) ? 'Cash Sale' : 'Credit Sale';
-            $items = $input['items'] ?? [];
 
             $pdo->beginTransaction();
             $stmt = $pdo->prepare("INSERT INTO invoices (work_order_id, customer_id, billed_by, sale_type, subtotal, discount_amount, grand_total, paid_amount, balance_due, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
