@@ -1,18 +1,18 @@
 <?php
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
-header('Content-Type: application/json');
-
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    exit(0);
-}
-
 require_once '../config.php';
+header('Content-Type: application/json');
 
 $action = $_GET['action'] ?? '';
 
+$user_id = get_user_id_from_token();
+if (!$user_id) {
+    http_response_code(401);
+    echo json_encode(["error" => "Unauthorized"]);
+    exit();
+}
+
 if ($action === 'save_quotation' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_permission($pdo, $user_id, 'quotations', 'quotations', true);
     $data = json_decode(file_get_contents("php://input"), true);
     
     if (!$data) {
