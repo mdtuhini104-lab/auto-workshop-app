@@ -1,0 +1,6 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^api/notifications/read-all$ api/api_notifications.php?action=read_all [L,QSA]
+    RewriteRule ^api/notifications/clear-all$ api/api_notifications.php?action=clear_all [L,QSA]
+    RewriteRule ^api/notifications/?$ api/api_notifications.php [L,QSA]
+</IfModule>
