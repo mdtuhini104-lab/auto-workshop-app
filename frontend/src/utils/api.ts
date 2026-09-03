@@ -59,29 +59,12 @@ function getFallbackMockData(endpoint: string, options: RequestInit) {
   const isWriteMethod = method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH';
 
   if (isWriteMethod) {
-    if (typeof window !== 'undefined') {
-      try {
-        const key = `mamun_erp_fallback_write_${endpoint}`;
-        const sanitizedKey = `mamun_erp_fallback_write_${endpoint.replace(/[^a-zA-Z0-9_/]/g, '_')}`;
-        let payload = {};
-        if (options.body) {
-          try {
-            payload = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
-          } catch (pe) {
-            payload = { raw: options.body };
-          }
-        }
-        localStorage.setItem(key, JSON.stringify(payload));
-
-        const existingData = localStorage.getItem(sanitizedKey);
-        const records = existingData ? JSON.parse(existingData) : [];
-        records.push({ timestamp: new Date().toISOString(), payload });
-        localStorage.setItem(sanitizedKey, JSON.stringify(records));
-      } catch (e) {
-        // Safe localStorage write fallback
-      }
-    }
-    return { success: true, message: 'Operation saved to local storage successfully.', id: Date.now(), data: [] };
+    return {
+      success: false,
+      message: 'Network request failed. Database record could not be saved.',
+      error: 'network_error',
+      data: []
+    };
   }
 
   // Master Data Fallbacks

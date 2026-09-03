@@ -181,27 +181,43 @@ try {
 
         case 'create_invoice':
             require_permission($pdo, $user_id, 'workshop', 'billing', true);
-            $work_order_id = $input['work_order_id'] ?? null;
-            $customer_id = $input['customer_id'];
-            $billed_by = $input['billed_by'] ?? 'Mamun Automobiles';
-            $subtotal = $input['subtotal'] ?? 0;
-            $discount_amount = $input['discount_amount'] ?? 0;
-            $grand_total = $input['grand_total'] ?? 0;
-            $paid_amount = $input['paid_amount'] ?? 0;
-            $balance_due = max(0, $grand_total - $paid_amount);
-            $sale_type = ($paid_amount >= $grand_total) ? 'Cash Sale' : 'Credit Sale';
+            $work_order_id = !empty($input['work_order_id']) ? intval($input['work_order_id']) : null;
+            $customer_id = intval($input['customer_id'] ?? 0);
+            $billed_by = strval($input['billed_by'] ?? 'Mamun Automobiles');
             $items = $input['items'] ?? [];
+
+            // Server-side financial re-calculation & sanitization: compute subtotal from item lines
+            $subtotal = 0.0;
+            $sanitized_items = [];
+            foreach ($items as $item) {
+                $qty = floatval($item['quantity'] ?? 0);
+                $rate = floatval($item['rate'] ?? 0);
+                $item_total = $qty * $rate;
+                $subtotal += $item_total;
+                $sanitized_items[] = [
+                    'description' => strval($item['description'] ?? ''),
+                    'quantity' => $qty,
+                    'rate' => $rate,
+                    'total' => $item_total
+                ];
+            }
+
+            $discount_amount = floatval($input['discount_amount'] ?? 0);
+            $paid_amount = floatval($input['paid_amount'] ?? 0);
+            $grand_total = max(0.0, $subtotal - $discount_amount);
+            $balance_due = max(0.0, $grand_total - $paid_amount);
+            $sale_type = ($paid_amount >= $grand_total) ? 'Cash Sale' : 'Credit Sale';
+            $status = ($balance_due == 0.0) ? 'Paid' : 'Unpaid';
 
             $pdo->beginTransaction();
             $stmt = $pdo->prepare("INSERT INTO invoices (work_order_id, customer_id, billed_by, sale_type, subtotal, discount_amount, grand_total, paid_amount, balance_due, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $status = $balance_due == 0 ? 'Paid' : 'Unpaid';
             $stmt->execute([$work_order_id, $customer_id, $billed_by, $sale_type, $subtotal, $discount_amount, $grand_total, $paid_amount, $balance_due, $status]);
             $invoice_id = $pdo->lastInsertId();
 
-            if (!empty($items)) {
+            if (!empty($sanitized_items)) {
                 $itemStmt = $pdo->prepare("INSERT INTO invoice_items (invoice_id, description, quantity, rate, total) VALUES (?, ?, ?, ?, ?)");
-                foreach ($items as $item) {
-                    $itemStmt->execute([$invoice_id, $item['description'], $item['quantity'], $item['rate'], $item['total']]);
+                foreach ($sanitized_items as $sItem) {
+                    $itemStmt->execute([$invoice_id, $sItem['description'], $sItem['quantity'], $sItem['rate'], $sItem['total']]);
                 }
             }
 
@@ -216,15 +232,15 @@ try {
 
         case 'check_historical_rate':
             require_permission($pdo, $user_id, 'workshop', 'billing', false);
-            $customer_id = $input['customer_id'] ?? $_GET['customer_id'] ?? 0;
-            $description = $input['description'] ?? $_GET['description'] ?? '';
+            $customer_id = intval($input['customer_id'] ?? $_GET['customer_id'] ?? 0);
+            $description = strval($input['description'] ?? $_GET['description'] ?? '');
             
             $stmt = $pdo->prepare("SELECT rate FROM invoice_items JOIN invoices ON invoice_items.invoice_id = invoices.id WHERE invoices.customer_id = ? AND invoice_items.description = ? ORDER BY invoices.issued_at DESC LIMIT 1");
             $stmt->execute([$customer_id, $description]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($result) {
-                echo json_encode(["success" => true, "locked_rate" => $result['rate']]);
+                echo json_encode(["success" => true, "locked_rate" => floatval($result['rate'])]);
             } else {
                 echo json_encode(["success" => false, "message" => "No historical rate found"]);
             }
@@ -232,8 +248,8 @@ try {
 
         case 'apply_post_discount':
             require_permission($pdo, $user_id, 'workshop', 'billing', true);
-            $invoice_id = $input['invoice_id'];
-            $new_discount = $input['discount_amount'];
+            $invoice_id = intval($input['invoice_id'] ?? 0);
+            $new_discount = floatval($input['discount_amount'] ?? 0);
             
             $pdo->beginTransaction();
             $stmt = $pdo->prepare("SELECT customer_id, subtotal, paid_amount, balance_due FROM invoices WHERE id = ?");
@@ -241,10 +257,12 @@ try {
             $invoice = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($invoice) {
-                $new_grand_total = max(0, $invoice['subtotal'] - $new_discount);
-                $new_balance = max(0, $new_grand_total - $invoice['paid_amount']);
-                $new_sale_type = ($invoice['paid_amount'] >= $new_grand_total) ? 'Cash Sale' : 'Credit Sale';
-                $new_status = $new_balance == 0 ? 'Paid' : 'Unpaid';
+                $subtotal = floatval($invoice['subtotal'] ?? 0);
+                $paid_amount = floatval($invoice['paid_amount'] ?? 0);
+                $new_grand_total = max(0.0, $subtotal - $new_discount);
+                $new_balance = max(0.0, $new_grand_total - $paid_amount);
+                $new_sale_type = ($paid_amount >= $new_grand_total) ? 'Cash Sale' : 'Credit Sale';
+                $new_status = ($new_balance == 0.0) ? 'Paid' : 'Unpaid';
                 
                 $update = $pdo->prepare("UPDATE invoices SET discount_amount = ?, grand_total = ?, balance_due = ?, sale_type = ?, status = ? WHERE id = ?");
                 $update->execute([$new_discount, $new_grand_total, $new_balance, $new_sale_type, $new_status, $invoice_id]);
