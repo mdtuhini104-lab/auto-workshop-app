@@ -31,7 +31,17 @@ export default function InspectionsPage() {
 
   useEffect(() => {
     setTimeout(() => {
-      setInspections(mockInspections);
+      let merged = [...mockInspections];
+      try {
+        const saved = localStorage.getItem('inspections_list');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            merged = [...parsed, ...merged];
+          }
+        }
+      } catch (e) {}
+      setInspections(merged);
       setIsLoading(false);
     }, 400);
   }, []);

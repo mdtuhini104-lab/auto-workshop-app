@@ -34,12 +34,16 @@ export default function AiInput({
 
     debounceTimerRef.current = setTimeout(async () => {
       setLoading(true);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
       try {
         const res = await fetch('/api/ai/suggest', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({ text: value }),
         });
+        clearTimeout(timeoutId);
         const data = await res.json();
 
         if (data.isError && data.corrected && data.corrected.trim() !== value.trim()) {
@@ -48,7 +52,8 @@ export default function AiInput({
           setSuggestion(null);
         }
       } catch (err) {
-        console.error('AI Suggestion error:', err);
+        clearTimeout(timeoutId);
+        console.warn('AI Suggestion fallback/abort:', err);
       } finally {
         setLoading(false);
       }

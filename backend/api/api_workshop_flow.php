@@ -209,9 +209,21 @@ try {
             $sale_type = ($paid_amount >= $grand_total) ? 'Cash Sale' : 'Credit Sale';
             $status = ($balance_due == 0.0) ? 'Paid' : 'Unpaid';
 
+            $ownership_id = !empty($input['ownership_id']) ? intval($input['ownership_id']) : null;
+            if (!$ownership_id && !empty($input['vehicle_id'])) {
+                $voh_stmt = $pdo->prepare("SELECT id FROM vehicle_ownership_history WHERE vehicle_id = ? AND ownership_status = 'Active' ORDER BY id DESC LIMIT 1");
+                $voh_stmt->execute([intval($input['vehicle_id'])]);
+                $ownership_id = $voh_stmt->fetchColumn() ?: null;
+            }
+
             $pdo->beginTransaction();
-            $stmt = $pdo->prepare("INSERT INTO invoices (work_order_id, customer_id, billed_by, sale_type, subtotal, discount_amount, grand_total, paid_amount, balance_due, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$work_order_id, $customer_id, $billed_by, $sale_type, $subtotal, $discount_amount, $grand_total, $paid_amount, $balance_due, $status]);
+            try {
+                $stmt = $pdo->prepare("INSERT INTO invoices (work_order_id, customer_id, ownership_id, billed_by, sale_type, subtotal, discount_amount, grand_total, paid_amount, balance_due, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$work_order_id, $customer_id, $ownership_id, $billed_by, $sale_type, $subtotal, $discount_amount, $grand_total, $paid_amount, $balance_due, $status]);
+            } catch (Exception $colEx) {
+                $stmt = $pdo->prepare("INSERT INTO invoices (work_order_id, customer_id, billed_by, sale_type, subtotal, discount_amount, grand_total, paid_amount, balance_due, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$work_order_id, $customer_id, $billed_by, $sale_type, $subtotal, $discount_amount, $grand_total, $paid_amount, $balance_due, $status]);
+            }
             $invoice_id = $pdo->lastInsertId();
 
             if (!empty($sanitized_items)) {
@@ -222,8 +234,13 @@ try {
             }
 
             if ($balance_due > 0) {
-                $ledgerStmt = $pdo->prepare("INSERT INTO customer_ledger (customer_id, invoice_id, transaction_type, amount) VALUES (?, ?, 'Debit', ?)");
-                $ledgerStmt->execute([$customer_id, $invoice_id, $balance_due]);
+                try {
+                    $ledgerStmt = $pdo->prepare("INSERT INTO customer_ledger (customer_id, ownership_id, invoice_id, transaction_type, amount) VALUES (?, ?, ?, 'Debit', ?)");
+                    $ledgerStmt->execute([$customer_id, $ownership_id, $invoice_id, $balance_due]);
+                } catch (Exception $clEx) {
+                    $ledgerStmt = $pdo->prepare("INSERT INTO customer_ledger (customer_id, invoice_id, transaction_type, amount) VALUES (?, ?, 'Debit', ?)");
+                    $ledgerStmt->execute([$customer_id, $invoice_id, $balance_due]);
+                }
             }
             $pdo->commit();
 

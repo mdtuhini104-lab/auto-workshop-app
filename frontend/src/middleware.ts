@@ -9,6 +9,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Rewrite /customer-statements to /workshop/customer-statements
+  if (pathname === '/customer-statements' || pathname === '/customer-statements/') {
+    return NextResponse.rewrite(new URL('/workshop/customer-statements', request.url));
+  }
+
   // Ensure unauthorized page redirects back to dashboard if user is logged in
   if (pathname === '/unauthorized') {
     return NextResponse.redirect(new URL('/dashboard', request.url));

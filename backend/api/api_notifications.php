@@ -1,44 +1,10 @@
 <?php
 require_once __DIR__ . '/../config.php';
-
-// Dynamic CORS - reflects requesting origin, supports credentials & preflight
-if (isset($_SERVER['HTTP_ORIGIN'])) {
-    header("Access-Control-Allow-Origin: {$_SERVER['HTTP_ORIGIN']}");
-    header('Access-Control-Allow-Credentials: true');
-    header('Access-Control-Max-Age: 86400');
-}
-if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_METHOD'])) {
-        header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE, PATCH");
-    }
-    if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])) {
-        header("Access-Control-Allow-Headers: {$_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']}");
-    }
-    exit(0);
-}
-
 header('Content-Type: application/json');
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $action = $_GET['action'] ?? '';
 $request_uri = $_SERVER['REQUEST_URI'] ?? '';
-
-// Auto-create notifications table if not exists
-try {
-    if (isset($pdo)) {
-        $pdo->exec("CREATE TABLE IF NOT EXISTS notifications (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NULL,
-            title VARCHAR(255) NOT NULL,
-            message TEXT,
-            type VARCHAR(50) DEFAULT 'info',
-            is_read TINYINT(1) DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )");
-    }
-} catch (Exception $e) {
-    // Ignore schema creation errors if already handled
-}
 
 $user_id = function_exists('get_user_id_from_token') ? (get_user_id_from_token() ?? 1) : 1;
 

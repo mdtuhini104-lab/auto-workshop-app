@@ -1,5 +1,11 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Strip /backend or /auto-workshop-app/backend prefix permanently
+    RewriteRule ^backend/(.*)$ /$1 [L,QSA]
+    RewriteRule ^(?:auto-workshop-app/)?backend/(.*)$ /$1 [L,QSA]
+
+    # Specific API route rewrites
     RewriteRule ^api/notifications/read-all$ api/api_notifications.php?action=read_all [L,QSA]
     RewriteRule ^api/notifications/clear-all$ api/api_notifications.php?action=clear_all [L,QSA]
     RewriteRule ^api/notifications/?$ api/api_notifications.php [L,QSA]

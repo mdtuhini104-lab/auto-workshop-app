@@ -29,20 +29,10 @@ interface MenuItem {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
-    'Master Data': true,
-    'Quotations': true,
-    'Purchases': true,
-    'Inventory': false,
-    'Accounts': false,
-    'Peoples': false,
-    'Appointments & Tracking': false,
-    'Reports & Analytics': false,
-    'Files': false
-  });
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
-  const toggleMenu = (title: string) => {
-    setOpenMenus(prev => ({ ...prev, [title]: !prev[title] }));
+  const toggleMenu = (menuKey: string) => {
+    setActiveMenu((prev) => (prev === menuKey ? null : menuKey));
   };
 
   const navigation: MenuItem[] = [
@@ -73,7 +63,7 @@ export default function Sidebar() {
         { title: 'Work Orders', href: '/quotations/orders' },
         { title: 'Job Cards', href: '/job-cards' },
         { title: 'Billing & Invoice', href: '/billing' },
-        { title: 'Customer Statements', href: '/customer-statements' },
+        { title: 'Customer Statements', href: '/workshop/customer-statements' },
       ]
     },
     {
@@ -146,11 +136,11 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 h-screen flex flex-col bg-white border-r border-slate-200 shrink-0 select-none shadow-sm z-30 overflow-hidden">
+    <aside className="w-64 h-screen max-h-screen flex flex-col bg-white border-r border-slate-200 select-none overflow-hidden relative z-30">
       {/* Header */}
-      <div className="h-16 flex items-center px-4 border-b border-slate-100 shrink-0 bg-white">
+      <div className="h-16 shrink-0 flex items-center px-4 border-b border-slate-200 bg-white">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
             <Wrench className="w-5 h-5"/>
           </div>
           <div>
@@ -160,12 +150,12 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Scrollable Nav with bounded height */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-1 hide-scrollbar">
-        <div className="space-y-1">
+      {/* Scrollable Navigation - Isolated with strict clipping and large padding */}
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+        <nav className="space-y-1 pb-44">
           {navigation.map((item) => {
             const Icon = item.icon;
-            const isSubMenuOpen = !!openMenus[item.title];
+            const isSubMenuOpen = activeMenu === item.title;
             const hasSubItems = item.subItems && item.subItems.length > 0;
             const isActiveDirect = item.href ? pathname === item.href : false;
 
@@ -204,9 +194,9 @@ export default function Sidebar() {
                   </button>
                 )}
 
-                {/* Sub-Items List */}
-                {hasSubItems && isSubMenuOpen && (
-                  <div className="overflow-hidden pl-9 pr-1 py-1 space-y-1 border-l ml-5">
+                {/* Sub-Items List: Strictly unmounted when closed */}
+                {hasSubItems && activeMenu === item.title && (
+                  <div className="space-y-0.5 pl-9 pr-1 mt-1 border-l ml-5 mb-2">
                     {item.subItems!.map((sub) => {
                       const isSubActive = pathname === sub.href;
                       return (
@@ -229,13 +219,11 @@ export default function Sidebar() {
               </div>
             );
           })}
-        </div>
-        {/* Safe spacer so expanded submenus never hit the footer */}
-        <div className="h-16 shrink-0 pointer-events-none" />
-      </nav>
+        </nav>
+      </div>
 
-      {/* Pinned Bottom Footer */}
-      <div className="p-3 border-t border-slate-200 bg-white shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-40 space-y-1">
+      {/* Footer Bar - Completely separated DOM node */}
+      <div className="shrink-0 p-3 border-t border-slate-200 bg-white z-40 space-y-1">
         <Link
           href="/peoples/users"
           prefetch={false}

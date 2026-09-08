@@ -24,15 +24,22 @@ export default function AddItemPage() {
     setIsSaving(true);
     
     try {
+      const sanitizedData = {
+        ...formData,
+        purchase_price: (parseFloat(formData.purchase_price) || 0).toFixed(2),
+        selling_price: (parseFloat(formData.selling_price) || 0).toFixed(2)
+      };
+
       const result = await fetchApi('/api/api_master_data.php?action=save_item', {
         method: 'POST',
-        body: JSON.stringify(formData)
+        body: JSON.stringify(sanitizedData)
       });
       
-      if (result.success) {
+      if (result && result.success) {
+        router.refresh();
         router.push('/master-data/items');
       } else {
-        alert(result.error || 'Failed to save item');
+        alert(result?.error || 'Failed to save item');
       }
     } catch (err) {
       console.error(err);

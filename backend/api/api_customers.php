@@ -1,31 +1,18 @@
 <?php
-// Dynamic CORS - reflects requesting origin, supports credentials & preflight
-if (isset($_SERVER['HTTP_ORIGIN'])) {
-    header("Access-Control-Allow-Origin: {$_SERVER['HTTP_ORIGIN']}");
-    header('Access-Control-Allow-Credentials: true');
-    header('Access-Control-Max-Age: 86400');
-}
-if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_METHOD']))
-        header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
-    if (isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']))
-        header("Access-Control-Allow-Headers: {$_SERVER['HTTP_ACCESS_CONTROL_REQUEST_HEADERS']}");
-    exit(0);
-}
 require_once '../config.php';
 header('Content-Type: application/json');
+
+$user_id = get_user_id_from_token();
+if (!$user_id) {
+    http_response_code(401);
+    echo json_encode(["success" => false, "error" => "Unauthorized"]);
+    exit();
+}
+
 $action = $_GET['action'] ?? '';
 
 if ($action === 'get_customers') {
-    try {
-        $pdo->exec("ALTER TABLE customers ADD COLUMN customer_code VARCHAR(20) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN company VARCHAR(100) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN city VARCHAR(50) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN state VARCHAR(50) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN zip_code VARCHAR(20) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN country VARCHAR(50) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN status VARCHAR(20) DEFAULT 'Active'");
-    } catch (Exception $e) { }
+    require_permission($pdo, $user_id, 'peoples', 'customers', false);
 
     try {
         $stmt = $pdo->query("
@@ -47,9 +34,12 @@ if ($action === 'get_customers') {
         $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         echo json_encode(['success' => true, 'data' => $customers]);
     } catch (PDOException $e) {
+        http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
     }
 } elseif ($action === 'save_customer') {
+    require_permission($pdo, $user_id, 'peoples', 'customers', true);
+
     $data = json_decode(file_get_contents('php://input'), true);
     
     $name = $data['name'] ?? '';
@@ -64,19 +54,10 @@ if ($action === 'get_customers') {
     $status = $data['status'] ?? 'Active';
 
     if (empty($name) || empty($phone)) {
+        http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Name and Phone are required fields']);
         exit;
     }
-
-    try {
-        $pdo->exec("ALTER TABLE customers ADD COLUMN customer_code VARCHAR(20) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN company VARCHAR(100) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN city VARCHAR(50) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN state VARCHAR(50) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN zip_code VARCHAR(20) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN country VARCHAR(50) NULL");
-        $pdo->exec("ALTER TABLE customers ADD COLUMN status VARCHAR(20) DEFAULT 'Active'");
-    } catch (Exception $e) { }
 
     try {
         $pdo->beginTransaction();
@@ -87,20 +68,24 @@ if ($action === 'get_customers') {
         $customerCode = 'CUS' . str_pad($count, 7, '0', STR_PAD_LEFT);
 
         $stmt = $pdo->prepare("
-            INSERT INTO customers (customer_code, name, email, phone, company, address, city, state, zip_code, country, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO customers (customer_code, name, email, phone, company, address, city, state, zip_code, country, status, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$customerCode, $name, $email, $phone, $company, $address, $city, $state, $zip, $country, $status]);
+        $stmt->execute([$customerCode, $name, $email, $phone, $company, $address, $city, $state, $zip, $country, $status, $user_id]);
         
         $customerId = $pdo->lastInsertId();
         $pdo->commit();
         
         echo json_encode(['success' => true, 'message' => 'Customer created successfully', 'customer_id' => $customerId]);
     } catch (PDOException $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Failed to save customer: ' . $e->getMessage()]);
     }
 } else {
+    http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Invalid action']);
 }
 ?>

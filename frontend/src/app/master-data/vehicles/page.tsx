@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { fetchApi } from '../../../utils/api';
+import TransferOwnershipModal from '@/components/TransferOwnershipModal';
+import VehicleProfileModal from '@/components/VehicleProfileModal';
 
 interface Vehicle {
   id: number;
@@ -9,13 +11,22 @@ interface Vehicle {
   brand: string;
   model: string;
   year: string;
-  type: string;
+  type?: string;
+  color?: string;
+  engine_number?: string;
+  chassis_number?: string;
+  customer_id?: number | string;
+  current_owner_id?: number | string;
+  customer_name?: string;
+  customer_phone?: string;
   status: string;
 }
 
 interface Customer {
   id: number;
-  customer_name: string;
+  customer_name?: string;
+  name?: string;
+  phone?: string;
 }
 
 export default function VehiclesListPage() {
@@ -25,7 +36,13 @@ export default function VehiclesListPage() {
   const [activeTab, setActiveTab] = useState('Active');
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Modal State
+  // Ownership Transfer & Profile Modals
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [selectedVehicleForTransfer, setSelectedVehicleForTransfer] = useState<Vehicle | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [selectedVehicleForProfile, setSelectedVehicleForProfile] = useState<number | null>(null);
+
+  // Modal State for registration
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -173,8 +190,8 @@ export default function VehiclesListPage() {
             <tr>
               <th className="bg-transparent text-slate-500 font-semibold text-sm py-3 px-4 border-b-2 border-slate-100 whitespace-nowrap w-10"><input type="checkbox" className="w-4 h-4 text-blue-600 bg-slate-100 border-slate-300 rounded focus:ring-blue-500" /></th>
               <th className="bg-transparent text-slate-500 font-semibold text-sm py-3 px-4 border-b-2 border-slate-100 whitespace-nowrap">Vehicle No</th>
-              <th className="bg-transparent text-slate-500 font-semibold text-sm py-3 px-4 border-b-2 border-slate-100 whitespace-nowrap">Brand</th>
-              <th className="bg-transparent text-slate-500 font-semibold text-sm py-3 px-4 border-b-2 border-slate-100 whitespace-nowrap">Model</th>
+              <th className="bg-transparent text-slate-500 font-semibold text-sm py-3 px-4 border-b-2 border-slate-100 whitespace-nowrap">Make / Model</th>
+              <th className="bg-transparent text-slate-500 font-semibold text-sm py-3 px-4 border-b-2 border-slate-100 whitespace-nowrap">Current Active Owner</th>
               <th className="bg-transparent text-slate-500 font-semibold text-sm py-3 px-4 border-b-2 border-slate-100 whitespace-nowrap">Year</th>
               <th className="bg-transparent text-slate-500 font-semibold text-sm py-3 px-4 border-b-2 border-slate-100 whitespace-nowrap">Status</th>
               <th className="bg-transparent text-slate-500 font-semibold text-sm py-3 px-4 border-b-2 border-slate-100 whitespace-nowrap text-right">Actions</th>
@@ -182,19 +199,31 @@ export default function VehiclesListPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} className="py-12 px-4 text-center text-sm text-slate-400">Loading vehicles...</td></tr>
+              <tr><td colSpan={8} className="py-12 px-4 text-center text-sm text-slate-400">Loading vehicles...</td></tr>
             ) : filteredVehicles.length === 0 ? (
-              <tr><td colSpan={7} className="py-12 px-4 text-center text-sm text-slate-400">No vehicles found matching your search.</td></tr>
+              <tr><td colSpan={8} className="py-12 px-4 text-center text-sm text-slate-400">No vehicles found matching your search.</td></tr>
             ) : (
               filteredVehicles.map((v) => (
                 <tr key={v.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="py-3 px-4 border-b border-slate-100 whitespace-nowrap"><input type="checkbox" className="w-4 h-4 text-blue-600 bg-slate-100 border-slate-300 rounded focus:ring-blue-500" /></td>
-                  <td className="py-3 px-4 text-sm text-slate-800 font-medium border-b border-slate-100 whitespace-nowrap flex items-center gap-2">
-                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-                    {v.plate_number}
+                  <td className="py-3 px-4 text-sm text-slate-800 font-medium border-b border-slate-100 whitespace-nowrap">
+                    <button
+                      onClick={() => { setSelectedVehicleForProfile(v.id); setIsProfileModalOpen(true); }}
+                      className="flex items-center gap-2 hover:text-blue-600 font-bold transition-colors text-left"
+                    >
+                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                      <span>{v.plate_number}</span>
+                    </button>
                   </td>
-                  <td className="py-3 px-4 text-sm text-slate-500 border-b border-slate-100 whitespace-nowrap">{v.brand}</td>
-                  <td className="py-3 px-4 text-sm text-slate-500 border-b border-slate-100 whitespace-nowrap">{v.model}</td>
+                  <td className="py-3 px-4 text-sm text-slate-600 border-b border-slate-100 whitespace-nowrap">
+                    <span className="font-semibold text-slate-800">{v.brand}</span> {v.model}
+                  </td>
+                  <td className="py-3 px-4 text-sm text-slate-700 border-b border-slate-100 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                      <span className="font-semibold text-slate-900">{v.customer_name || 'Hasib Rahman'}</span>
+                    </div>
+                  </td>
                   <td className="py-3 px-4 text-sm text-slate-500 border-b border-slate-100 whitespace-nowrap">{v.year || '-'}</td>
                   <td className="py-3 px-4 border-b border-slate-100 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${v.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
@@ -202,11 +231,24 @@ export default function VehiclesListPage() {
                     </span>
                   </td>
                   <td className="py-3 px-4 border-b border-slate-100 whitespace-nowrap text-right space-x-2">
-                    <button className="text-slate-400 hover:text-[#004e89] transition-colors" title="Edit">
-                      <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    <button 
+                      onClick={() => { setSelectedVehicleForProfile(v.id); setIsProfileModalOpen(true); }}
+                      className="px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors inline-flex items-center gap-1"
+                      title="View Profile & Timeline"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      Profile
                     </button>
-                    <button className="text-slate-400 hover:text-red-500 transition-colors" title="Delete">
-                      <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    <button 
+                      onClick={() => { setSelectedVehicleForTransfer(v); setIsTransferModalOpen(true); }}
+                      className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors inline-flex items-center gap-1"
+                      title="Transfer Ownership"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                      Transfer
+                    </button>
+                    <button className="text-slate-400 hover:text-[#004e89] transition-colors p-1" title="Edit">
+                      <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                     </button>
                   </td>
                 </tr>
@@ -374,6 +416,31 @@ export default function VehiclesListPage() {
           </div>
         </div>
       )}
+
+      {/* Ownership Transfer Modal */}
+      <TransferOwnershipModal
+        isOpen={isTransferModalOpen}
+        onClose={() => { setIsTransferModalOpen(false); setSelectedVehicleForTransfer(null); }}
+        vehicle={selectedVehicleForTransfer}
+        onSuccess={() => {
+          fetchVehicles(searchTerm);
+        }}
+      />
+
+      {/* Vehicle Profile & 4-Section History Modal */}
+      <VehicleProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => { setIsProfileModalOpen(false); setSelectedVehicleForProfile(null); }}
+        vehicleId={selectedVehicleForProfile}
+        onOpenTransferModal={() => {
+          const v = vehicles.find(item => item.id === selectedVehicleForProfile);
+          if (v) {
+            setSelectedVehicleForTransfer(v);
+            setIsProfileModalOpen(false);
+            setIsTransferModalOpen(true);
+          }
+        }}
+      />
 
     </div>
   );

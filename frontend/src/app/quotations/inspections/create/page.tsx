@@ -15,6 +15,13 @@ interface DiagnosticItem {
   unit: string;
 }
 
+interface VehicleOption {
+  id: string;
+  customerId: string;
+  name: string;
+  ownershipId?: number | null;
+}
+
 function CreateInspectionContent() {
   const router = useRouter();
   const [customerId, setCustomerId] = useState('');
@@ -24,21 +31,44 @@ function CreateInspectionContent() {
   const [severity, setSeverity] = useState('Low');
   
   const [customers, setCustomers] = useState([
-    { id: '1', name: 'John Doe (01711223344)' },
+    { id: '1', name: 'Hasib Rahman (01711223344)' },
     { id: '2', name: 'Sarah Smith (01855667788)' },
-    { id: '3', name: 'Europetex Limited (01711-889900)' }
+    { id: '3', name: 'Europetex Limited (01711-889900)' },
+    { id: '4', name: 'Tuhin Ahmed (01911998877)' }
   ]);
-  const [vehicles, setVehicles] = useState([
-    { id: '1', customerId: '1', name: 'Toyota Corolla (DHK-12-3456)' },
-    { id: '2', customerId: '1', name: 'Honda CR-V (DHK-77-1122)' },
-    { id: '3', customerId: '2', name: 'Nissan X-Trail (CTG-44-8899)' },
-    { id: '4', customerId: '3', name: 'Toyota Land Cruiser Prado (DHK-METRO-GA-13-8851)' }
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([
+    { id: '101', customerId: '1', name: 'Toyota Land Cruiser Prado (DHAKA-METRO-GA-13-8851)', ownershipId: 1 },
+    { id: '102', customerId: '2', name: 'Nissan X-Trail (DHAKA-METRO-HA-45-7890)', ownershipId: 2 },
+    { id: '103', customerId: '3', name: 'Mitsubishi Pajero Sport (CHATTOGRAM-METRO-GA-77-1122)', ownershipId: 3 }
   ]);
 
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
 
   useEffect(() => {
+    import('@/utils/api').then(({ fetchApi }) => {
+      Promise.all([
+        fetchApi('/api/api_master_data.php?action=get_vehicles'),
+        fetchApi('/api/api_customers.php?action=get_customers')
+      ]).then(([vehRes, custRes]) => {
+        if (custRes && custRes.success && Array.isArray(custRes.data)) {
+          setCustomers(custRes.data.map((c: any) => ({
+            id: String(c.id),
+            name: `${c.name || c.customer_name} (${c.phone || ''})`
+          })));
+        }
+        if (vehRes && vehRes.success && Array.isArray(vehRes.data)) {
+          setVehicles(vehRes.data.map((v: any) => ({
+            id: String(v.id),
+            // Dynamically resolve active owner
+            customerId: String(v.current_owner_id || v.customer_id || '1'),
+            name: `${v.brand} ${v.model} (${v.plate_number})`,
+            ownershipId: v.active_ownership_id || null
+          })));
+        }
+      }).catch(console.error);
+    });
+
     const savedCust = localStorage.getItem('master_customers');
     if (savedCust) {
       try {
@@ -104,11 +134,42 @@ function CreateInspectionContent() {
     }));
   };
 
-  const handleConvertToQuotation = () => {
+  const handleSaveInspection = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!customerId || !vehicleId) {
+      alert('Please select a Customer and Vehicle first.');
+      return;
+    }
+
+    const selCust = customers.find(c => String(c.id) === String(customerId));
+    const selVeh = vehicles.find(v => String(v.id) === String(vehicleId));
+
+    const newInspection = {
+      id: Date.now(),
+      inspection_no: `INS-2026-${Math.floor(100 + Math.random() * 900)}`,
+      customer_name: selCust ? selCust.name.split('(')[0].trim() : 'Customer',
+      customer_phone: selCust ? (selCust.name.match(/\(([^)]+)\)/)?.[1] || '') : '',
+      vehicle_no: selVeh ? selVeh.name.split('(')[1]?.replace(')', '').trim() || selVeh.name : 'Vehicle',
+      vehicle_model: selVeh ? selVeh.name.split('(')[0].trim() : '',
+      status: 'Open',
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    try {
+      const existing = JSON.parse(localStorage.getItem('inspections_list') || '[]');
+      localStorage.setItem('inspections_list', JSON.stringify([newInspection, ...existing]));
+    } catch (err) {}
+
+    router.refresh();
+    router.push('/quotations/inspections');
+  };
+
+  const handleConvertToQuotation = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     const payload = {
       customerId,
       vehicleId,
-      odometer,
+      odometer: parseFloat(odometer) || 0,
       fuelLevel,
       lineItems: diagnosticItems
     };
@@ -395,7 +456,7 @@ function CreateInspectionContent() {
         <Link href="/quotations/inspections" prefetch={false} className="h-8 px-4 rounded text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors inline-flex items-center">
           Cancel
         </Link>
-        <button className="h-8 px-4 rounded text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm">
+        <button onClick={handleSaveInspection} className="h-8 px-4 rounded text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm">
           Save Inspection
         </button>
         <button onClick={handleConvertToQuotation} className="h-8 px-4 rounded text-xs font-semibold text-white bg-[#004e89] hover:bg-[#003d6c] transition-colors shadow-sm inline-flex items-center">

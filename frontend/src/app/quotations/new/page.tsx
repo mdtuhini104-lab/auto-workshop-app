@@ -64,7 +64,7 @@ export default function NewQuotationPage() {
 
   const handleSave = async (status: "Draft" | "Sent") => {
     // API Call would go here
-    // Example: fetch('/backend/api/api_workshop_flow.php?action=log_quotation', { ... })
+    // Example: fetch('/api/api_workshop_flow.php?action=log_quotation', { ... })
     alert(`Quotation saved as ${status}!`);
     router.push('/quotations');
   };

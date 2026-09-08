@@ -34,7 +34,17 @@ function QuotationsContent() {
 
   useEffect(() => {
     setTimeout(() => {
-      setQuotations(mockQuotations);
+      let merged = [...mockQuotations];
+      try {
+        const saved = localStorage.getItem('quotations_list');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            merged = [...parsed, ...merged];
+          }
+        }
+      } catch (e) {}
+      setQuotations(merged);
       setIsLoading(false);
     }, 400);
   }, []);

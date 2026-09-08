@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import CustomerProfileModal from '@/components/CustomerProfileModal';
+import { fetchApi } from '@/utils/api';
 
 interface Customer {
-  id: string;
+  id: string | number;
   name: string;
   phone: string;
   email: string;
@@ -12,12 +14,35 @@ interface Customer {
 }
 
 const DEFAULT_CUSTOMERS: Customer[] = [
-  { id: 'CUST-001', name: 'Europetex Limited', phone: '01711-889900', email: 'info@europetex.com', type: 'Corporate', totalVehicles: 4 },
-  { id: 'CUST-002', name: 'Mr. Rafiqul Islam', phone: '01819-221100', email: 'rafiqul@gmail.com', type: 'Individual', totalVehicles: 1 },
+  { id: '1', name: 'Hasib Rahman', phone: '01711-223344', email: 'hasib@example.com', type: 'Individual', totalVehicles: 1 },
+  { id: '2', name: 'Sarah Smith', phone: '01819-556677', email: 'sarah@example.com', type: 'Individual', totalVehicles: 1 },
+  { id: '3', name: 'Europetex Limited', phone: '01711-889900', email: 'info@europetex.com', type: 'Corporate', totalVehicles: 1 },
+  { id: '4', name: 'Tuhin Ahmed', phone: '01911-998877', email: 'tuhin@example.com', type: 'Individual', totalVehicles: 0 },
 ];
 
 export default function CustomersPage() {
-  const [customers] = useState<Customer[]>(DEFAULT_CUSTOMERS);
+  const [customers, setCustomers] = useState<Customer[]>(DEFAULT_CUSTOMERS);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const loadCustomers = async () => {
+      try {
+        const res = await fetchApi('/api/api_customers.php?action=get_customers');
+        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setCustomers(res.data.map((c: any) => ({
+            id: c.id,
+            name: c.name || c.customer_name,
+            phone: c.phone,
+            email: c.email || 'N/A',
+            type: c.company ? 'Corporate' : 'Individual',
+            totalVehicles: Number(c.vehicle_count ?? 1)
+          })));
+        }
+      } catch (e) {}
+    };
+    loadCustomers();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -77,13 +102,26 @@ export default function CustomersPage() {
                 </td>
                 <td className="py-3 px-4 text-center font-bold text-slate-800">{c.totalVehicles} Cars</td>
                 <td className="py-3 px-4 text-right">
-                  <button className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded text-xs font-semibold">View Profile</button>
+                  <button 
+                    onClick={() => { setSelectedCustomer(c); setIsProfileModalOpen(true); }}
+                    className="px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded text-xs font-semibold transition-colors inline-flex items-center gap-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    Fleet & History
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Customer Profile & Vehicle Ownership Modal */}
+      <CustomerProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => { setIsProfileModalOpen(false); setSelectedCustomer(null); }}
+        customer={selectedCustomer}
+      />
     </div>
   );
 }

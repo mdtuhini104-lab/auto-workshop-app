@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import AiInput from '@/components/ui/AiInput';
 import QuickCustomerModal from '@/components/modals/QuickCustomerModal';
 import QuickVehicleModal from '@/components/modals/QuickVehicleModal';
+import { fetchApi } from '@/utils/api';
 
 interface LineItem {
   id: string;
@@ -43,6 +44,34 @@ function CreateQuotationContent() {
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
 
   useEffect(() => {
+    // 1. Fetch live vehicles and customers from master data API
+    const loadMasterData = async () => {
+      try {
+        const [vehRes, custRes] = await Promise.all([
+          fetchApi('/api/api_master_data.php?action=get_vehicles'),
+          fetchApi('/api/api_customers.php?action=get_customers')
+        ]);
+
+        if (custRes && custRes.success && Array.isArray(custRes.data)) {
+          setCustomerOptions(custRes.data.map((c: any) => `${c.name || c.customer_name} (${c.phone || ''})`));
+        }
+
+        if (vehRes && vehRes.success && Array.isArray(vehRes.data)) {
+          setVehiclesList(vehRes.data.map((v: any) => ({
+            id: String(v.id),
+            // Dynamically resolved current active owner
+            customerName: v.customer_name ? `${v.customer_name} (${v.customer_phone || ''})` : 'Hasib Rahman (01711223344)',
+            name: `${v.brand} ${v.model} (${v.plate_number})`,
+            plateNumber: v.plate_number,
+            ownershipId: v.active_ownership_id
+          })));
+        }
+      } catch (err) {
+        console.error('Error fetching master data', err);
+      }
+    };
+    loadMasterData();
+
     const savedCust = localStorage.getItem('master_customers');
     if (savedCust) {
       try {
@@ -59,8 +88,9 @@ function CreateQuotationContent() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           setVehiclesList(prev => [...parsed.map((v: any) => ({
             id: String(v.id),
-            customerName: v.customerName || v.customer_name || 'John Doe (01711223344)',
-            name: `${v.model} (${v.plateNumber || v.plate_number})`
+            customerName: v.customerName || v.customer_name || 'Hasib Rahman (01711223344)',
+            name: `${v.model} (${v.plateNumber || v.plate_number})`,
+            plateNumber: v.plateNumber || v.plate_number
           })), ...prev]);
         }
       } catch (e) {}
@@ -226,13 +256,26 @@ function CreateQuotationContent() {
     };
 
     try {
-      // POST to backend API endpoint if active, or log and process mock save
-      console.log('Saving quotation payload:', payload);
+      const quoteNo = `QT-${new Date().toISOString().slice(2, 7).replace('-', '')}-${Math.floor(100 + Math.random() * 900)}`;
+      const savedItem = {
+        id: Date.now(),
+        quote_no: quoteNo,
+        customer_name: customer.split('(')[0].trim(),
+        plate_number: vehicle.split('(')[1]?.replace(')', '').trim() || vehicle,
+        total_amount: parseFloat(grandTotal.toFixed(2)) || 0,
+        date: quotationDate || new Date().toISOString().split('T')[0],
+        status: status || 'Draft'
+      };
+
+      try {
+        const existing = JSON.parse(localStorage.getItem('quotations_list') || '[]');
+        localStorage.setItem('quotations_list', JSON.stringify([savedItem, ...existing]));
+      } catch (e) {}
 
       // Simulate network save delay
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Redirect user back to quotations list
+      router.refresh();
       router.push('/quotations');
     } catch (error) {
       console.error('Failed to save quotation:', error);

@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchApi } from '../../../../utils/api';
 
-export default function JobCardEditPage() {
+function JobCardEditContent() {
   const params = useParams();
   const router = useRouter();
-  const jobId = params.id as string;
+  const jobId = (params?.id as string) || '';
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,14 +71,9 @@ export default function JobCardEditPage() {
     setError('');
 
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost/auto-workshop-app/backend/api/api_core_workflow.php?action=update_job_card', {
+      const res = await fetchApi('/api/api_core_workflow.php?action=update_job_card', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
+        data: {
           ...formData,
           mechanic_id: formData.mechanic_id ? parseInt(formData.mechanic_id) : null,
           items: formData.items.map(i => ({
@@ -87,17 +82,15 @@ export default function JobCardEditPage() {
             quantity: typeof i.quantity === 'string' ? parseFloat(i.quantity) : i.quantity,
             mechanic_id: i.mechanic_id ? parseInt(i.mechanic_id) : null
           }))
-        })
+        }
       });
-      
-      const data = await res.json();
-      if (data.success) {
+      if (res && (res.success || res.message)) {
         router.push('/workshop/job-cards');
       } else {
-        setError(data.error || 'Failed to update Job Card');
+        setError(res?.error || 'Failed to update job card');
       }
-    } catch (err) {
-      setError('An error occurred while saving.');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during submission.');
     } finally {
       setIsSubmitting(false);
     }
@@ -271,5 +264,13 @@ export default function JobCardEditPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function JobCardEditPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-xs text-slate-400">Loading job card...</div>}>
+      <JobCardEditContent />
+    </Suspense>
   );
 }

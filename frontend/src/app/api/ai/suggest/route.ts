@@ -34,32 +34,41 @@ export async function POST(req: Request) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
     if (apiKey) {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: `${SUGGEST_SYSTEM_PROMPT}\n\nCheck input term:\n"${text}"` }],
-              },
-            ],
-          }),
-        }
-      );
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-      if (response.ok) {
-        const data = await response.json();
-        const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawJson) {
-          try {
-            const clean = rawJson.replace(/```json|```/g, '').trim();
-            const parsed = JSON.parse(clean);
-            return NextResponse.json(parsed);
-          } catch (e) {}
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: 'user',
+                  parts: [{ text: `${SUGGEST_SYSTEM_PROMPT}\n\nCheck input term:\n"${text}"` }],
+                },
+              ],
+            }),
+          }
+        );
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawJson) {
+            try {
+              const clean = rawJson.replace(/```json|```/g, '').trim();
+              const parsed = JSON.parse(clean);
+              return NextResponse.json(parsed);
+            } catch (e) {}
+          }
         }
+      } catch (err) {
+        clearTimeout(timeoutId);
       }
     }
 

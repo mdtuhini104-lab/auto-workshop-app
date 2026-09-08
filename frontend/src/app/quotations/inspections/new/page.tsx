@@ -110,14 +110,11 @@ const QuickCustomerModal = ({ onClose, onSuccess }: { onClose: () => void; onSuc
   const handleQuickAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost/auto-workshop-app/backend/api/api_inspections.php?action=quick_add_customer', {
+      const data = await fetchApi('/api/api_inspections.php?action=quick_add_customer', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(newCustomer)
+        data: newCustomer
       });
-      const data = await res.json();
-      if (data.success) {
+      if (data && data.success) {
         onSuccess({ id: data.customer.id, name: data.customer.name, phone: data.customer.phone });
       }
     } catch (err) {
@@ -221,14 +218,11 @@ const QuickVehicleModal = ({ customerId, onClose, onSuccess }: { customerId: str
   const handleQuickAddVehicle = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost/auto-workshop-app/backend/api/api_inspections.php?action=quick_add_vehicle', {
+      const data = await fetchApi('/api/api_inspections.php?action=quick_add_vehicle', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ plate_number: newVehicle.plate_number, brand: newVehicle.brand, model: newVehicle.model, customer_id: customerId ? parseInt(customerId.toString()) : null })
+        data: { plate_number: newVehicle.plate_number, brand: newVehicle.brand, model: newVehicle.model, customer_id: customerId ? parseInt(customerId.toString()) : null }
       });
-      const data = await res.json();
-      if (data.success) {
+      if (data && data.success) {
         onSuccess({ id: data.vehicle.id, plate_number: data.vehicle.plate_number, customer_id: customerId ? parseInt(customerId.toString()) : 0 });
       }
     } catch (err) {
@@ -413,18 +407,13 @@ function NewInspectionPageContent() {
     setError('');
 
     try {
-      const token = localStorage.getItem('token');
-      const actionUrl = editId 
-        ? 'http://localhost/auto-workshop-app/backend/api/api_core_workflow.php?action=update_inspection'
-        : 'http://localhost/auto-workshop-app/backend/api/api_inspections.php?action=save_inspection';
+      const endpoint = editId 
+        ? '/api/api_core_workflow.php?action=update_inspection'
+        : '/api/api_inspections.php?action=save_inspection';
         
-      const res = await fetch(actionUrl, {
+      const data = await fetchApi(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
+        data: {
           ...formData,
           inspection_id: editId ? parseInt(editId) : undefined,
           customer_id: parseInt(formData.customer_id),
@@ -439,17 +428,16 @@ function NewInspectionPageContent() {
             item_id: i.item_id ? parseInt(i.item_id) : null,
             quantity: typeof i.quantity === 'string' ? parseInt(i.quantity) : i.quantity
           }))
-        })
+        }
       });
       
-      const data = await res.json();
-      if (data.success) {
+      if (data && data.success) {
         router.push('/quotations/inspections');
       } else {
-        setError(data.error || 'Failed to save inspection');
+        setError(data?.error || 'Failed to save Inspection');
       }
-    } catch (err) {
-      setError('An error occurred while saving.');
+    } catch (err: any) {
+      setError(err?.message || 'An error occurred while saving.');
     } finally {
       setIsSubmitting(false);
     }

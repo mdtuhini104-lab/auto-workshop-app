@@ -14,23 +14,49 @@ function CreateJobCardContent() {
   const [activeStep, setActiveStep] = useState<'customer' | 'items' | 'summary'>('customer');
   const [customerId, setCustomerId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
+  const [ownershipId, setOwnershipId] = useState<number | null>(null);
   const [mechanic, setMechanic] = useState('Samim (Senior AC Technician)');
   const [tasks, setTasks] = useState('1. AC Gas Refill & Compressor Pressure Test\n2. Synthetic Engine Oil & Filter Change');
   const [partsUsed, setPartsUsed] = useState('Bosch Engine Oil 4L (PRT-8821), Air Filter (PRT-7719)');
   const [isSaved, setIsSaved] = useState(false);
 
-  const customersList = [
-    { id: '1', name: 'John Doe (01711223344)' },
+  const [customersList, setCustomersList] = useState([
+    { id: '1', name: 'Hasib Rahman (01711223344)' },
     { id: '2', name: 'Sarah Smith (01855667788)' },
     { id: '3', name: 'Europetex Limited (01711-889900)' },
-  ];
+    { id: '4', name: 'Tuhin Ahmed (01911998877)' },
+  ]);
 
-  const vehiclesList = [
-    { id: '1', customerId: '1', name: 'Toyota Corolla (DHK-12-3456)' },
-    { id: '2', customerId: '1', name: 'Honda CR-V (DHK-77-1122)' },
-    { id: '3', customerId: '2', name: 'Nissan X-Trail (CTG-44-8899)' },
-    { id: '4', customerId: '3', name: 'DHK-METRO-GA-13-8851 (Toyota Prado)' },
-  ];
+  const [vehiclesList, setVehiclesList] = useState([
+    { id: '101', customerId: '1', name: 'Toyota Land Cruiser Prado (DHAKA-METRO-GA-13-8851)', ownershipId: 1 },
+    { id: '102', customerId: '2', name: 'Nissan X-Trail (DHAKA-METRO-HA-45-7890)', ownershipId: 2 },
+    { id: '103', customerId: '3', name: 'Mitsubishi Pajero Sport (CHATTOGRAM-METRO-GA-77-1122)', ownershipId: 3 },
+  ]);
+
+  useEffect(() => {
+    import('@/utils/api').then(({ fetchApi }) => {
+      Promise.all([
+        fetchApi('/api/api_master_data.php?action=get_vehicles'),
+        fetchApi('/api/api_customers.php?action=get_customers')
+      ]).then(([vehRes, custRes]) => {
+        if (custRes && custRes.success && Array.isArray(custRes.data)) {
+          setCustomersList(custRes.data.map((c: any) => ({
+            id: String(c.id),
+            name: `${c.name || c.customer_name} (${c.phone || ''})`
+          })));
+        }
+        if (vehRes && vehRes.success && Array.isArray(vehRes.data)) {
+          setVehiclesList(vehRes.data.map((v: any) => ({
+            id: String(v.id),
+            // Dynamically resolve active owner
+            customerId: String(v.current_owner_id || v.customer_id || '1'),
+            name: `${v.brand} ${v.model} (${v.plate_number})`,
+            ownershipId: v.active_ownership_id || null
+          })));
+        }
+      }).catch(console.error);
+    });
+  }, []);
 
   useEffect(() => {
     let payload: any = null;
